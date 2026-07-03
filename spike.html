@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Nadar — data spike (raw, unstyled)</title>
+</head>
+<body>
+
+<h1>Nadar data spike</h1>
+<p>
+  Goal: (a) can <code>horaires_*</code> be parsed into machine-readable slots, and
+  (b) does CORS allow this API to be called from a third-party origin (this page).
+  No parsing, no styling — raw field values only.
+</p>
+
+<div id="status">Fetching…</div>
+<div id="summary"></div>
+<table id="results" border="1" cellpadding="4" cellspacing="0"></table>
+
+<script>
+const API_URL =
+  "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/" +
+  "ilots-de-fraicheur-equipements-activites/records" +
+  '?where=type%3D%22Piscine%22&limit=100';
+
+const HORAIRES_FIELDS = [
+  "horaires_periode",
+  "horaires_lundi",
+  "horaires_mardi",
+  "horaires_mercredi",
+  "horaires_jeudi",
+  "horaires_vendredi",
+  "horaires_samedi",
+  "horaires_dimanche",
+];
+
+function cell(text) {
+  const td = document.createElement("td");
+  // show raw value, including exact length, so truncation is visible
+  const v = text === null || text === undefined ? "" : String(text);
+  td.textContent = v;
+  if (v.length >= 50) {
+    td.style.background = "#ffe0e0";
+    td.title = "length " + v.length + " — possibly truncated";
+  }
+  return td;
+}
+
+function renderTable(records) {
+  const table = document.getElementById("results");
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  ["nom", "arrondissement", "geo_point_2d", ...HORAIRES_FIELDS].forEach((h) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  records.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.appendChild(cell(r.nom));
+    tr.appendChild(cell(r.arrondissement));
+    const gp = r.geo_point_2d ? `${r.geo_point_2d.lat}, ${r.geo_point_2d.lon}` : "";
+    tr.appendChild(cell(gp));
+    HORAIRES_FIELDS.forEach((f) => tr.appendChild(cell(r[f])));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+async function run() {
+  const statusEl = document.getElementById("status");
+  const summaryEl = document.getElementById("summary");
+  const start = performance.now();
+  try {
+    const res = await fetch(API_URL);
+    const elapsed = Math.round(performance.now() - start);
+    if (!res.ok) {
+      statusEl.textContent = `Fetch failed: HTTP ${res.status}`;
+      return;
+    }
+    const data = await res.json();
+    statusEl.textContent = `CORS OK — fetched from ${location.origin || "(file://)"} in ${elapsed}ms.`;
+    summaryEl.innerHTML =
+      `<p><strong>total_count:</strong> ${data.total_count} &nbsp; ` +
+      `<strong>results returned:</strong> ${data.results.length}</p>` +
+      `<p>Cells highlighted red are exactly 50 chars or more (candidate truncation — ` +
+      `the source system appears to cap horaires_* text fields at 50 chars).</p>`;
+    renderTable(data.results);
+  } catch (err) {
+    statusEl.textContent = "CORS/network error: " + err.message;
+    statusEl.style.color = "red";
+  }
+}
+
+run();
+</script>
+
+</body>
+</html>
