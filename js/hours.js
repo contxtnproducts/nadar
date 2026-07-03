@@ -49,11 +49,25 @@ export function getOpenStatus(pool, now = new Date()) {
     return "unknown";
   }
 
-  const dayKey = DAY_KEY_BY_INDEX[now.getDay()];
-  const slots = parseSlots(pool.horaires[dayKey]);
+  const slots = getTodaySlots(pool, now);
   if (slots.length === 0) return "closed";
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const isOpen = slots.some((slot) => nowMinutes >= slot.startMinutes && nowMinutes < slot.endMinutes);
   return isOpen ? "open" : "closed";
+}
+
+export function getTodaySlots(pool, now = new Date()) {
+  const dayKey = DAY_KEY_BY_INDEX[now.getDay()];
+  return parseSlots(pool.horaires[dayKey]);
+}
+
+export function formatSlot(slot) {
+  return `${formatMinutes(slot.startMinutes)} - ${formatMinutes(slot.endMinutes)}`;
+}
+
+function formatMinutes(totalMinutes) {
+  const h = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+  const m = String(totalMinutes % 60).padStart(2, "0");
+  return `${h}h${m}`;
 }

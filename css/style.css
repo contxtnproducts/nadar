@@ -67,6 +67,12 @@ header p {
   font-size: 0.9rem;
 }
 
+.pool-hours {
+  color: #666;
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+
 .status-badge {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;

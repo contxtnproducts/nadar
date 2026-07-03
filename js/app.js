@@ -2,7 +2,7 @@ import { fetchPools } from "./pools.js";
 import { geocode, reverseGeocode } from "./geocode.js";
 import { crowFliesKm } from "./distance.js";
 import { saveLocation, loadLocation, clearLocation } from "./storage.js";
-import { getOpenStatus } from "./hours.js";
+import { getOpenStatus, getTodaySlots, formatSlot } from "./hours.js";
 
 const STATUS_RANK = { open: 0, unknown: 1, closed: 2 };
 const STATUS_LABEL = { open: "Ouvert maintenant", closed: "Fermé", unknown: "Horaires non confirmées" };
@@ -145,7 +145,11 @@ function renderPools() {
   const sorted = currentLocation ? sortByDistance(pools, currentLocation) : sortByName(pools);
 
   const now = new Date();
-  const withStatus = sorted.map((pool) => ({ ...pool, openStatus: getOpenStatus(pool, now) }));
+  const withStatus = sorted.map((pool) => ({
+    ...pool,
+    openStatus: getOpenStatus(pool, now),
+    todaySlots: getTodaySlots(pool, now),
+  }));
   // Stable sort: groups by status (open first) while preserving the
   // distance/name order already established within each group.
   withStatus.sort((a, b) => STATUS_RANK[a.openStatus] - STATUS_RANK[b.openStatus]);
@@ -200,6 +204,14 @@ function renderPoolItem(pool) {
   const distanceText = pool.distanceKm != null ? `${pool.distanceKm.toFixed(1)} km — ` : "";
   meta.textContent = `${distanceText}${pool.address}, ${pool.arrondissement}`;
   li.appendChild(meta);
+
+  const hours = document.createElement("div");
+  hours.className = "pool-hours";
+  hours.textContent =
+    pool.todaySlots.length > 0
+      ? `Aujourd'hui : ${pool.todaySlots.map(formatSlot).join(" / ")}`
+      : "Fermé aujourd'hui";
+  li.appendChild(hours);
 
   return li;
 }
