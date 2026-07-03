@@ -2,7 +2,7 @@ import { fetchPools } from "./pools.js";
 import { geocode, reverseGeocode, searchAddresses } from "./geocode.js";
 import { crowFliesKm } from "./distance.js";
 import { saveLocation, loadLocation, clearLocation } from "./storage.js";
-import { getOpenStatus, getTodaySlots, formatSlot } from "./hours.js";
+import { getOpenStatus, getTodaySlots, findCoveringSlot, formatMinutes } from "./hours.js";
 import { getWalkingDurations } from "./routing.js";
 
 const STATUS_RANK = { open: 0, unknown: 1, closed: 2 };
@@ -238,18 +238,26 @@ function renderPools() {
 
   const departureTime = getEffectiveDepartureTime();
   const isNow = whenMode === "now";
-  const withStatus = sorted.map((pool) => ({
-    ...pool,
-    openStatus: getOpenStatus(pool, departureTime),
-    todaySlots: getTodaySlots(pool, departureTime),
-  }));
+  const withStatus = sorted.map((pool) => {
+    // Arrival = departure + actual walking time when known; falls back
+    // to departure itself (v1's original assumption) when it isn't.
+    const arrivalTime = pool.walkSeconds != null ? new Date(departureTime.getTime() + pool.walkSeconds * 1000) : departureTime;
+    const daySlots = getTodaySlots(pool, arrivalTime);
+    const arrivalMinutes = arrivalTime.getHours() * 60 + arrivalTime.getMinutes();
+    return {
+      ...pool,
+      arrivalTime,
+      openStatus: getOpenStatus(pool, arrivalTime),
+      coveringSlot: findCoveringSlot(daySlots, arrivalMinutes),
+    };
+  });
   // Stable sort: groups by status (open first) while preserving the
   // distance/name order already established within each group.
   withStatus.sort((a, b) => STATUS_RANK[a.openStatus] - STATUS_RANK[b.openStatus]);
 
   poolListEl.innerHTML = "";
   withStatus.forEach((pool) => {
-    poolListEl.appendChild(renderPoolItem(pool, departureTime, isNow));
+    poolListEl.appendChild(renderPoolItem(pool, isNow));
   });
 }
 
@@ -300,7 +308,7 @@ function statusLabel(status, isNow) {
   return "Horaires non confirmées";
 }
 
-function renderPoolItem(pool, departureTime, isNow) {
+function renderPoolItem(pool, isNow) {
   const li = document.createElement("li");
   li.className = `pool pool-${pool.openStatus}`;
 
@@ -325,14 +333,33 @@ function renderPoolItem(pool, departureTime, isNow) {
 
   const hours = document.createElement("div");
   hours.className = "pool-hours";
-  const dayLabel = formatDayLabel(departureTime);
-  hours.textContent =
-    pool.todaySlots.length > 0
-      ? `${dayLabel} : ${pool.todaySlots.map(formatSlot).join(" / ")}`
-      : `Fermé ${dayLabel === "Aujourd'hui" ? "aujourd'hui" : dayLabel}`;
+  hours.textContent = formatVisitLine(pool);
   li.appendChild(hours);
 
   return li;
+}
+
+function formatClock(date) {
+  return `${String(date.getHours()).padStart(2, "0")}h${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+// "current slot" here means the opening slot the arrival actually falls
+// in, not a raw dump of the day's data — only ever shows the one slot
+// relevant to this visit.
+function formatVisitLine(pool) {
+  const dayLabel = formatDayLabel(pool.arrivalTime);
+  const prefix = dayLabel === "Aujourd'hui" ? "" : `${dayLabel} — `;
+  const arrivalStr = formatClock(pool.arrivalTime);
+
+  if (pool.coveringSlot) {
+    const arrivalMinutes = pool.arrivalTime.getHours() * 60 + pool.arrivalTime.getMinutes();
+    const swimMinutes = pool.coveringSlot.endMinutes - arrivalMinutes;
+    return `${prefix}Arrivée à ${arrivalStr} — ${swimMinutes} min de baignade possible (jusqu'à ${formatMinutes(pool.coveringSlot.endMinutes)})`;
+  }
+  if (pool.openStatus === "unknown") {
+    return `${prefix}Arrivée à ${arrivalStr} — horaires non confirmées`;
+  }
+  return `${prefix}Arrivée à ${arrivalStr} — fermé à ce moment-là`;
 }
 
 function formatProximity(pool) {

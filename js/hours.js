@@ -53,8 +53,7 @@ export function getOpenStatus(pool, now = new Date()) {
   if (slots.length === 0) return "closed";
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const isOpen = slots.some((slot) => nowMinutes >= slot.startMinutes && nowMinutes < slot.endMinutes);
-  return isOpen ? "open" : "closed";
+  return findCoveringSlot(slots, nowMinutes) ? "open" : "closed";
 }
 
 export function getTodaySlots(pool, now = new Date()) {
@@ -62,11 +61,17 @@ export function getTodaySlots(pool, now = new Date()) {
   return parseSlots(pool.horaires[dayKey]);
 }
 
+// The one slot a given minute-of-day actually falls inside, if any —
+// "current slot" in the opening-hours sense, not an API/data-field sense.
+export function findCoveringSlot(slots, minutesOfDay) {
+  return slots.find((slot) => minutesOfDay >= slot.startMinutes && minutesOfDay < slot.endMinutes) || null;
+}
+
 export function formatSlot(slot) {
   return `${formatMinutes(slot.startMinutes)} - ${formatMinutes(slot.endMinutes)}`;
 }
 
-function formatMinutes(totalMinutes) {
+export function formatMinutes(totalMinutes) {
   const h = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
   const m = String(totalMinutes % 60).padStart(2, "0");
   return `${h}h${m}`;
