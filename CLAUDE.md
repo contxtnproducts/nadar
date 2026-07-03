@@ -12,7 +12,8 @@ This is also a learning project: the owner (Thomas) wants to understand decision
 - **No-build static site**: `index.html` + vanilla JS files, served directly from `main` via GitHub Pages. No bundler, no framework, no CI.
 - **UI**: DSFR (Système de Design de l'État) loaded via CDN. Respect its 8px grid and color tokens.
 - **Data**: fetched live in the browser from the Paris Open Data Explore API v2.1, dataset `ilots-de-fraicheur-equipements-activites`, filtered on pools. Hours are synced daily by the city from paris.fr — no local data pipeline needed.
-- **Geocoding** (manual address entry): api-adresse.data.gouv.fr (BAN), no API key.
+- **Geocoding** (manual address entry, autocomplete, reverse geocoding for "here"): api-adresse.data.gouv.fr (BAN), no API key, search scoped to Paris only (`citycode=75056`).
+- **Walking travel time**: pulled forward from the v2 roadmap (2026-07-03, on request) — sorting now uses real pedestrian routing instead of crow-flies alone. Provider: `valhalla1.openstreetmap.de` (public Valhalla instance, matrix/`sources_to_targets` endpoint, one batched request for the whole pool list). This is a **community test server, not an official/governmental API** — no SLA, unlike BAN/Explore. The OSRM public demo was tried first and rejected: it silently returns identical numbers for `foot` and `driving` profiles (no real pedestrian graph). Falls back to crow-flies (labeled "à vol d'oiseau") with a visible error message if routing fails.
 - **Storage**: home/work locations are device-only. Use `localStorage` behind a small adapter (`saveLocation()/loadLocation()`), so code also runs in Claude artifacts (`window.storage`) via feature detection.
 - **Privacy**: nothing leaves the browser except open-data API calls. Never add analytics or send positions anywhere.
 
@@ -34,8 +35,8 @@ A pool qualifies if a public opening slot fully covers `[arrival, arrival + dura
 - **Not in the dataset** (needs a small hand-curated attribute layer): basin length (50m filter), photos.
 
 ## Roadmap
-- v1: crow-flies distance, fixed 30min buffer assumption, curated 50m attribute.
-- v2: real transit travel time (routing API), refined closing buffers.
+- v1: real walking time via routing API (see Architecture — pulled forward from v2 on 2026-07-03), fixed 30min buffer assumption, curated 50m attribute.
+- v2: real transit travel time (currently only walking is covered), refined closing buffers.
 
 ## Workflow rules
 - Data spike → functional build → DSFR/Figma polish. In that order.
