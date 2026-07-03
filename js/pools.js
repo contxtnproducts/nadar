@@ -14,5 +14,15 @@ export async function fetchPools() {
     arrondissement: r.arrondissement,
     lat: r.geo_point_2d ? r.geo_point_2d.lat : null,
     lon: r.geo_point_2d ? r.geo_point_2d.lon : null,
+    horaires: {
+      periode: r.horaires_periode,
+      dimanche: r.horaires_dimanche,
+      lundi: r.horaires_lundi,
+      mardi: r.horaires_mardi,
+      mercredi: r.horaires_mercredi,
+      jeudi: r.horaires_jeudi,
+      vendredi: r.horaires_vendredi,
+      samedi: r.horaires_samedi,
+    },
   }));
 }

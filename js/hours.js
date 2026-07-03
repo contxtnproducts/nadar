@@ -1,0 +1,59 @@
+const DAY_KEY_BY_INDEX = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+
+// Only well-formed "HHhMM - HHhMM" pairs match — a dangling truncated
+// trailing fragment (the dataset caps horaires_* at 50 chars) has no
+// closing time, so it never matches and is silently dropped.
+const SLOT_RE = /(\d{2})h(\d{2})\s*-\s*(\d{2})h(\d{2})/g;
+
+function parseSlots(rawDayValue) {
+  if (!rawDayValue) return [];
+  const slots = [];
+  let match;
+  SLOT_RE.lastIndex = 0;
+  while ((match = SLOT_RE.exec(rawDayValue)) !== null) {
+    const [, startHour, startMinute, endHour, endMinute] = match;
+    slots.push({
+      startMinutes: Number(startHour) * 60 + Number(startMinute),
+      endMinutes: Number(endHour) * 60 + Number(endMinute),
+    });
+  }
+  return slots;
+}
+
+function parsePeriod(rawPeriode) {
+  if (!rawPeriode) return null;
+
+  let m = rawPeriode.match(/du (\d{2})\/(\d{2})\/(\d{2}) au (\d{2})\/(\d{2})\/(\d{2})/);
+  if (m) {
+    const [, d1, m1, y1, d2, m2, y2] = m;
+    return {
+      start: new Date(2000 + Number(y1), Number(m1) - 1, Number(d1)),
+      end: new Date(2000 + Number(y2), Number(m2) - 1, Number(d2), 23, 59, 59),
+    };
+  }
+
+  m = rawPeriode.match(/à partir du (\d{2})\/(\d{2})\/(\d{2})/);
+  if (m) {
+    const [, d1, m1, y1] = m;
+    return { start: new Date(2000 + Number(y1), Number(m1) - 1, Number(d1)), end: null };
+  }
+
+  return null;
+}
+
+// Returns "open", "closed", or "unknown" (period doesn't cover `now`,
+// or is unparseable — parked decision: don't guess, say so honestly).
+export function getOpenStatus(pool, now = new Date()) {
+  const period = parsePeriod(pool.horaires.periode);
+  if (!period || now < period.start || (period.end && now > period.end)) {
+    return "unknown";
+  }
+
+  const dayKey = DAY_KEY_BY_INDEX[now.getDay()];
+  const slots = parseSlots(pool.horaires[dayKey]);
+  if (slots.length === 0) return "closed";
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const isOpen = slots.some((slot) => nowMinutes >= slot.startMinutes && nowMinutes < slot.endMinutes);
+  return isOpen ? "open" : "closed";
+}

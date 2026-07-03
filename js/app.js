@@ -2,6 +2,10 @@ import { fetchPools } from "./pools.js";
 import { geocode } from "./geocode.js";
 import { crowFliesKm } from "./distance.js";
 import { saveLocation, loadLocation, clearLocation } from "./storage.js";
+import { getOpenStatus } from "./hours.js";
+
+const STATUS_RANK = { open: 0, unknown: 1, closed: 2 };
+const STATUS_LABEL = { open: "Ouvert maintenant", closed: "Fermé", unknown: "Horaires non confirmées" };
 
 const REMEMBERED_ROLES = ["home", "work"];
 
@@ -136,8 +140,14 @@ function setLocation(role, location) {
 function renderPools() {
   const sorted = currentLocation ? sortByDistance(pools, currentLocation) : sortByName(pools);
 
+  const now = new Date();
+  const withStatus = sorted.map((pool) => ({ ...pool, openStatus: getOpenStatus(pool, now) }));
+  // Stable sort: groups by status (open first) while preserving the
+  // distance/name order already established within each group.
+  withStatus.sort((a, b) => STATUS_RANK[a.openStatus] - STATUS_RANK[b.openStatus]);
+
   poolListEl.innerHTML = "";
-  sorted.forEach((pool) => {
+  withStatus.forEach((pool) => {
     poolListEl.appendChild(renderPoolItem(pool));
   });
 }
@@ -165,11 +175,21 @@ function sortByDistance(list, location) {
 
 function renderPoolItem(pool) {
   const li = document.createElement("li");
-  li.className = "pool";
+  li.className = `pool pool-${pool.openStatus}`;
+
+  const header = document.createElement("div");
+  header.className = "pool-header";
 
   const name = document.createElement("strong");
   name.textContent = pool.name;
-  li.appendChild(name);
+  header.appendChild(name);
+
+  const badge = document.createElement("span");
+  badge.className = "status-badge";
+  badge.textContent = STATUS_LABEL[pool.openStatus];
+  header.appendChild(badge);
+
+  li.appendChild(header);
 
   const meta = document.createElement("div");
   meta.className = "pool-meta";

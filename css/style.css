@@ -55,9 +55,39 @@ header p {
   border-bottom: 1px solid #ddd;
 }
 
+.pool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
 .pool-meta {
   color: #444;
   font-size: 0.9rem;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pool-open .status-badge {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.pool-closed .status-badge {
+  background: #fdecea;
+  color: #b3261e;
+}
+
+.pool-unknown .status-badge {
+  background: #f1f1f1;
+  color: #666;
+  font-style: italic;
 }
 
 footer {
