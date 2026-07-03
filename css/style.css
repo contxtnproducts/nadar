@@ -10,23 +10,37 @@ header p {
   color: #444;
 }
 
-#where-options {
+#where-options,
+#when-options {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-#where-options button {
+#where-options button,
+#when-options button {
   padding: 0.5rem 1rem;
   border: 1px solid #666;
   background: #fff;
   cursor: pointer;
 }
 
-#where-options button[aria-pressed="true"] {
+#where-options button[aria-pressed="true"],
+#when-options button[aria-pressed="true"] {
   background: #000091;
   color: #fff;
   border-color: #000091;
+}
+
+#departure-time-input {
+  margin-top: 0.75rem;
+  padding: 0.4rem;
+}
+
+#routing-status {
+  margin-top: 0.5rem;
+  font-style: italic;
+  color: #b3261e;
 }
 
 #address-form {
