@@ -1,5 +1,5 @@
 import { fetchPools } from "./pools.js";
-import { geocode } from "./geocode.js";
+import { geocode, reverseGeocode } from "./geocode.js";
 import { crowFliesKm } from "./distance.js";
 import { saveLocation, loadLocation, clearLocation } from "./storage.js";
 import { getOpenStatus } from "./hours.js";
@@ -78,12 +78,16 @@ function useGeolocation() {
   }
   locationStatusEl.textContent = "Localisation en cours…";
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      setLocation("here", {
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
-        label: "Ma position",
-      });
+    async (pos) => {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      let label = "Ma position (adresse inconnue)";
+      try {
+        const resolved = await reverseGeocode(lat, lon);
+        if (resolved) label = resolved;
+      } catch (err) {
+        // keep the generic label — reverse geocoding failing shouldn't block using the position
+      }
+      setLocation("here", { lat, lon, label });
     },
     () => {
       locationStatusEl.textContent =
