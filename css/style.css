@@ -1,0 +1,67 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1rem;
+  color: #1e1e1e;
+}
+
+header p {
+  color: #444;
+}
+
+#where-options {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+#where-options button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #666;
+  background: #fff;
+  cursor: pointer;
+}
+
+#where-options button[aria-pressed="true"] {
+  background: #000091;
+  color: #fff;
+  border-color: #000091;
+}
+
+#address-form {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+#address-form input {
+  flex: 1;
+  padding: 0.4rem;
+}
+
+#location-status {
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+#pool-list {
+  list-style: none;
+  padding: 0;
+}
+
+.pool {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.pool-meta {
+  color: #444;
+  font-size: 0.9rem;
+}
+
+footer {
+  margin-top: 2rem;
+  font-size: 0.8rem;
+  color: #666;
+}

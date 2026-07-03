@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nadar — trouve une piscine à Paris</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <h1>Nadar</h1>
+  <p>Trouve une piscine parisienne pour nager, maintenant.</p>
+</header>
+
+<section id="where-filter" aria-label="Filtre de localisation">
+  <h2>Où ?</h2>
+  <div id="where-options" role="group" aria-label="Choix de localisation">
+    <button type="button" data-role="here" aria-pressed="false">Ici</button>
+    <button type="button" data-role="work" aria-pressed="false">Travail</button>
+    <button type="button" data-role="home" aria-pressed="false">Domicile</button>
+    <button type="button" data-role="elsewhere" aria-pressed="false">Ailleurs</button>
+  </div>
+
+  <form id="address-form" hidden>
+    <label for="address-input">Adresse ou arrondissement</label>
+    <input id="address-input" type="text" placeholder="ex : 10 rue de Rivoli, ou 75011" autocomplete="off">
+    <button type="submit">Valider</button>
+  </form>
+
+  <p id="location-status" aria-live="polite"></p>
+  <button type="button" id="change-location-btn" hidden>Changer</button>
+</section>
+
+<section id="pool-list-section">
+  <h2>Piscines</h2>
+  <p id="pool-status" aria-live="polite">Chargement…</p>
+  <ul id="pool-list"></ul>
+</section>
+
+<footer>
+  <p>
+    Données : Ville de Paris, via
+    <a href="https://opendata.paris.fr/explore/dataset/ilots-de-fraicheur-equipements-activites/" target="_blank" rel="noopener">opendata.paris.fr</a>,
+    licence ODbL.
+  </p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
