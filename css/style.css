@@ -2,154 +2,126 @@ body {
   font-family: system-ui, sans-serif;
   max-width: 640px;
   margin: 0 auto;
-  padding: 0 0 6rem;
+  padding: 1rem;
   color: #1e1e1e;
-}
-
-/* Header */
-
-#hero {
-  background: #f5f5fe;
-  padding: 3rem 1rem 1.5rem;
-}
-
-#hero .brand {
-  margin: 0 0 1rem;
-  font-weight: 700;
-  color: #000091;
-}
-
-#hero .kicker {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  color: #666;
-}
-
-#hero h1 {
-  margin: 0;
-  font-size: 2rem;
-  line-height: 1.25;
-  color: #161616;
-}
-
-#pool-list-section {
-  padding: 1.5rem 1rem 0;
 }
 
 #pool-status {
   color: #444;
+  margin: 0 0 1rem;
 }
-
-/* Pool list / cards */
 
 #pool-list {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .pool {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid #ddd;
+  position: relative;
+  height: 228px;
+  background: #fff;
+  border: 1px solid #ddd;
+  overflow: hidden;
 }
 
 .pool-photo {
-  position: relative;
-  flex: 0 0 96px;
-  height: 128px;
-  border-radius: 4px;
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  bottom: -1px;
+  width: calc(33.33% + 1px);
   background: linear-gradient(135deg, #b3d9e8 0%, #7fb8d4 60%, #5a9bc4 100%);
 }
 
 .pool-badge {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 0.15rem 0.5rem;
+  top: 12px;
+  left: 12px;
+  padding: 0 6px;
   border-radius: 4px;
-  font-size: 0.7rem;
+  background: #e9edfe;
+  color: #6e445a;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.pool-badge-open {
-  background: #b8fec9;
-  color: #18753c;
-}
-
-.pool-badge-closed {
-  background: #eee;
-  color: #666;
-}
-
-.pool-badge-unknown {
-  background: #eee;
-  color: #666;
-  font-style: italic;
+  line-height: 20px;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .pool-content {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  top: -1px;
+  left: 33.33%;
+  right: -1px;
+  bottom: -1px;
+  padding: 24px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  justify-content: space-between;
+}
+
+.pool-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .pool-name {
   margin: 0;
-  font-size: 1.1rem;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 28px;
   color: #161616;
 }
 
-.pool-arrival {
+.pool-arrival,
+.pool-slots {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 14px;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pool-arrival {
   color: #3a3a3a;
 }
 
 .pool-slots {
-  margin: 0;
-  font-size: 0.85rem;
   color: #666;
 }
 
-.pool-proximity {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #666;
-}
-
-/* Day bar: travel icon + capped dash + open/closed day track */
-
-.day-bar {
+.day-bar-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  height: 16px;
-  margin: 0.15rem 0;
+  gap: 8px;
+  padding: 8px 0;
+  width: 100%;
 }
 
 .day-bar-icon {
   flex: 0 0 auto;
-  font-size: 0.85rem;
+  font-size: 14px;
   line-height: 1;
 }
 
 .day-bar-dash {
-  flex: 0 0 20px;
+  flex: 0 0 28px;
   height: 1px;
-  background: #ccc;
+  background: #929292;
 }
 
 .day-bar-track {
   flex: 1;
   display: flex;
-  height: 100%;
-  border-radius: 3px;
-  overflow: hidden;
+  height: 16px;
+  gap: 1px;
 }
 
 .day-segment-open {
@@ -163,8 +135,8 @@ body {
 .pool-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
+  align-items: center;
+  gap: 12px;
 }
 
 .pool-action-icon {
@@ -173,129 +145,7 @@ body {
 }
 
 footer {
-  margin-top: 2rem;
-  padding: 0 1rem;
+  margin-top: 1.5rem;
   font-size: 0.8rem;
   color: #666;
-}
-
-/* Bottom sticky bar */
-
-#bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #fff;
-  box-shadow: 0 -6px 18px rgba(0, 0, 18, 0.16);
-  padding: 0.75rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-.summary-row {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.summary-row button {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  background: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.summary-row button[aria-pressed="true"] {
-  border-color: #000091;
-  color: #000091;
-  font-weight: 600;
-}
-
-/* Modals */
-
-dialog {
-  border: none;
-  border-radius: 8px;
-  padding: 1.5rem;
-  width: min(90vw, 420px);
-  box-shadow: 0 6px 18px rgba(0, 0, 18, 0.16);
-}
-
-dialog::backdrop {
-  background: rgba(0, 0, 18, 0.32);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 0 0 1rem;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.modal-close {
-  border: none;
-  background: none;
-  font-size: 1rem;
-  cursor: pointer;
-  color: #666;
-}
-
-#where-options,
-#when-options {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-#where-options button,
-#when-options button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #666;
-  background: #fff;
-  cursor: pointer;
-}
-
-#where-options button[aria-pressed="true"],
-#when-options button[aria-pressed="true"] {
-  background: #000091;
-  color: #fff;
-  border-color: #000091;
-}
-
-#departure-time-input {
-  margin-top: 0.75rem;
-  padding: 0.4rem;
-}
-
-#routing-status {
-  margin-top: 0.5rem;
-  font-style: italic;
-  color: #b3261e;
-}
-
-#address-form {
-  margin-top: 0.75rem;
-  display: flex;
-  gap: 0.5rem;
-}
-
-#address-form input {
-  flex: 1;
-  padding: 0.4rem;
-}
-
-#location-status {
-  margin-top: 0.5rem;
-  font-style: italic;
 }
