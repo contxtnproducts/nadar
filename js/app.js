@@ -10,10 +10,13 @@ const STATUS_RANK = { open: 0, unknown: 1, closed: 2 };
 // is untouched, just not the current data source.
 const USE_DUMMY_DATA = true;
 
-const PIN_ICON_SVG =
-  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>';
+const TRAVEL_REFERENCE_MINUTES = 45; // walk time that fills the capped 1/3-width travel segment
+
 const ARROW_ICON_SVG =
   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+// Simple pictogram in DSFR's line-icon style (thin stroke, currentColor).
+const WALK_ICON_SVG =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="4" r="1.6" fill="currentColor" stroke="none"/><path d="M10.5 22l1.3-6-1.8-1.5.4-4.5 2.8-1.3 2 2.6h2.8M9.2 15l-2.7 1.8M15.3 13.2l2.7 1.8 1.3 4"/></svg>';
 
 let pools = [];
 
@@ -100,6 +103,9 @@ function renderPhoto(pool) {
   if (pool.photoUrl) {
     wrap.style.backgroundImage = `url("${pool.photoUrl}")`;
   }
+  const overlay = document.createElement("span");
+  overlay.className = "pool-photo-overlay";
+  wrap.appendChild(overlay);
   const badge = document.createElement("span");
   badge.className = "pool-badge";
   badge.textContent = statusBadgeLabel(pool.openStatus);
@@ -117,6 +123,7 @@ function renderContent(pool) {
   const name = document.createElement("p");
   name.className = "pool-name";
   name.textContent = pool.name;
+  name.title = pool.name;
   body.appendChild(name);
 
   const arrLine = document.createElement("p");
@@ -137,19 +144,23 @@ function renderContent(pool) {
   return content;
 }
 
-// bike icon + dash + day open/closed segments
+// walk icon + dash (length = walk duration, capped at 1/3 width) + day open/closed segments
 function renderDayBar(pool) {
   const row = document.createElement("div");
   row.className = "day-bar-row";
 
   const icon = document.createElement("span");
   icon.className = "day-bar-icon";
-  icon.textContent = "🚶";
+  icon.innerHTML = WALK_ICON_SVG;
   icon.setAttribute("aria-hidden", "true");
   row.appendChild(icon);
 
   const dash = document.createElement("span");
   dash.className = "day-bar-dash";
+  if (pool.walkMinutes != null) {
+    const travelFraction = Math.min(0.33, (pool.walkMinutes / TRAVEL_REFERENCE_MINUTES) * 0.33);
+    dash.style.flex = `0 0 ${(travelFraction * 100).toFixed(1)}%`;
+  }
   row.appendChild(dash);
 
   const track = document.createElement("span");
@@ -194,24 +205,10 @@ function renderActionRow(pool) {
   const row = document.createElement("div");
   row.className = "pool-actions";
 
-  if (pool.lat != null && pool.lon != null) {
-    const mapLink = document.createElement("a");
-    mapLink.href = `https://www.google.com/maps/search/?api=1&query=${pool.lat},${pool.lon}`;
-    mapLink.target = "_blank";
-    mapLink.rel = "noopener";
-    mapLink.className = "pool-action-icon";
-    mapLink.title = "Voir sur Google Maps";
-    mapLink.setAttribute("aria-label", `${pool.name} sur Google Maps`);
-    mapLink.innerHTML = PIN_ICON_SVG;
-    row.appendChild(mapLink);
-  }
-
   // Interim: a paris.fr search link until pool pages are matched by ID
   // (names don't line up exactly with the lieux-municipaux dataset).
   const infoLink = document.createElement("a");
   infoLink.href = `https://www.paris.fr/recherche?q=${encodeURIComponent(pool.name)}`;
-  infoLink.target = "_blank";
-  infoLink.rel = "noopener";
   infoLink.className = "pool-action-icon";
   infoLink.title = "Voir sur paris.fr";
   infoLink.setAttribute("aria-label", `${pool.name} sur paris.fr`);

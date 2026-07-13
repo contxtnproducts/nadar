@@ -133,6 +133,7 @@ export function generateDummyPools(now = new Date()) {
       lat: 48.85 + (Math.random() - 0.5) * 0.08,
       lon: 2.35 + (Math.random() - 0.5) * 0.1,
       photoUrl: photos[i % photos.length],
+      walkMinutes: 5 + Math.floor(Math.random() * 65),
       horaires,
     };
   });
