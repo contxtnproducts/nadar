@@ -1,7 +1,14 @@
 import { fetchPools } from "./pools.js";
+import { generateDummyPools } from "./dummyPools.js";
 import { getOpenStatus, getTodaySlots, findCoveringSlot, getRemainingSlotsToday, formatSlotShort } from "./hours.js";
 
 const STATUS_RANK = { open: 0, unknown: 1, closed: 2 };
+
+// Decoupled from the real API for now so every card state (open/closed/
+// unknown, single/multiple slots, etc.) is visible regardless of the
+// real clock. Flip to false to go back to fetchPools() — that logic
+// is untouched, just not the current data source.
+const USE_DUMMY_DATA = true;
 
 const PIN_ICON_SVG =
   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>';
@@ -17,8 +24,8 @@ init();
 
 async function init() {
   try {
-    pools = await fetchPools();
-    poolStatusEl.textContent = `${pools.length} piscines trouvées.`;
+    pools = USE_DUMMY_DATA ? generateDummyPools() : await fetchPools();
+    poolStatusEl.textContent = "";
     renderPools();
   } catch (err) {
     poolStatusEl.textContent = "Impossible de charger les piscines : " + err.message;
@@ -60,17 +67,18 @@ function statusBadgeLabel(status) {
 // "Arr. à 07:45, 15mn de nage"
 function formatArrivalLine(pool) {
   const arrivalStr = formatClockColon(pool.arrivalTime);
+  if (pool.openStatus === "unknown") return `Arr. à ${arrivalStr}, horaires non confirmées`;
   if (pool.coveringSlot) {
     const nowMinutes = pool.arrivalTime.getHours() * 60 + pool.arrivalTime.getMinutes();
     const swimMinutes = pool.coveringSlot.endMinutes - nowMinutes;
     return `Arr. à ${arrivalStr}, ${swimMinutes}mn de nage`;
   }
-  if (pool.openStatus === "unknown") return `Arr. à ${arrivalStr}, horaires non confirmées`;
   return `Arr. à ${arrivalStr}, fermé à cette heure`;
 }
 
 // "6:45-7:45, 13:30-14:45"
 function formatRemainingSlotsLine(pool) {
+  if (pool.openStatus === "unknown") return "Horaires non confirmées pour aujourd'hui";
   const remaining = getRemainingSlotsToday(pool, pool.arrivalTime);
   if (remaining.length === 0) return "Fermé le reste de la journée";
   return remaining.map(formatSlotShort).join(", ");
@@ -89,6 +97,9 @@ function renderPoolItem(pool) {
 function renderPhoto(pool) {
   const wrap = document.createElement("div");
   wrap.className = "pool-photo";
+  if (pool.photoUrl) {
+    wrap.style.backgroundImage = `url("${pool.photoUrl}")`;
+  }
   const badge = document.createElement("span");
   badge.className = "pool-badge";
   badge.textContent = statusBadgeLabel(pool.openStatus);
@@ -144,6 +155,11 @@ function renderDayBar(pool) {
   const track = document.createElement("span");
   track.className = "day-bar-track";
   row.appendChild(track);
+
+  if (pool.openStatus === "unknown") {
+    track.appendChild(daySegment(1, "unknown"));
+    return row;
+  }
 
   const nowMinutes = pool.arrivalTime.getHours() * 60 + pool.arrivalTime.getMinutes();
   const dayEnd = 24 * 60;

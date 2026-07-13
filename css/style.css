@@ -1,5 +1,5 @@
 body {
-  font-family: system-ui, sans-serif;
+  font-family: Marianne, arial, sans-serif;
   max-width: 640px;
   margin: 0 auto;
   padding: 1rem;
@@ -34,7 +34,10 @@ body {
   left: -1px;
   bottom: -1px;
   width: calc(33.33% + 1px);
-  background: linear-gradient(135deg, #b3d9e8 0%, #7fb8d4 60%, #5a9bc4 100%);
+  background-color: #7fb8d4;
+  background-image: linear-gradient(135deg, #b3d9e8 0%, #7fb8d4 60%, #5a9bc4 100%);
+  background-size: cover;
+  background-position: center;
 }
 
 .pool-badge {
@@ -130,6 +133,10 @@ body {
 
 .day-segment-closed {
   background: #f1dbcf;
+}
+
+.day-segment-unknown {
+  background: repeating-linear-gradient(45deg, #e5e5e5, #e5e5e5 4px, #eee 4px, #eee 8px);
 }
 
 .pool-actions {
