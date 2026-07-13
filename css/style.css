@@ -127,13 +127,13 @@ body {
 }
 
 .day-bar-dash {
-  flex: 0 0 28px;
+  /* flex-basis set per-card in JS, proportional to walk time */
   height: 1px;
   background: #929292;
 }
 
 .day-bar-track {
-  flex: 1;
+  /* flex-basis set per-card in JS, proportional to the rest of the day */
   display: flex;
   height: 16px;
   gap: 1px;

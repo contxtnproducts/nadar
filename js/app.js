@@ -10,8 +10,6 @@ const STATUS_RANK = { open: 0, unknown: 1, closed: 2 };
 // is untouched, just not the current data source.
 const USE_DUMMY_DATA = true;
 
-const TRAVEL_REFERENCE_MINUTES = 45; // walk time that fills the capped 1/3-width travel segment
-
 const ARROW_ICON_SVG =
   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 // Simple pictogram in DSFR's line-icon style (thin stroke, currentColor).
@@ -40,13 +38,17 @@ function renderPools() {
   const sorted = [...pools].sort((a, b) => a.name.localeCompare(b.name));
 
   const withStatus = sorted.map((pool) => {
-    const daySlots = getTodaySlots(pool, now);
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    // Arrival = departure ("now") + walk time, so the day-bar's dash
+    // (trip) and track (rest of the day) share one consistent scale.
+    const arrivalTime = pool.walkMinutes != null ? new Date(now.getTime() + pool.walkMinutes * 60000) : now;
+    const daySlots = getTodaySlots(pool, arrivalTime);
+    const arrivalMinutes = arrivalTime.getHours() * 60 + arrivalTime.getMinutes();
     return {
       ...pool,
-      arrivalTime: now,
-      openStatus: getOpenStatus(pool, now),
-      coveringSlot: findCoveringSlot(daySlots, nowMinutes),
+      departureTime: now,
+      arrivalTime,
+      openStatus: getOpenStatus(pool, arrivalTime),
+      coveringSlot: findCoveringSlot(daySlots, arrivalMinutes),
     };
   });
   withStatus.sort((a, b) => STATUS_RANK[a.openStatus] - STATUS_RANK[b.openStatus]);
@@ -144,7 +146,10 @@ function renderContent(pool) {
   return content;
 }
 
-// walk icon + dash (length = walk duration, capped at 1/3 width) + day open/closed segments
+// walk icon + dash (trip) + track (rest of the day). Dash and track
+// together always span the same total on every card — "now" to
+// midnight — so a card's trip and remaining day are always shown to
+// scale against each other and against every other card.
 function renderDayBar(pool) {
   const row = document.createElement("div");
   row.className = "day-bar-row";
@@ -157,38 +162,43 @@ function renderDayBar(pool) {
 
   const dash = document.createElement("span");
   dash.className = "day-bar-dash";
-  if (pool.walkMinutes != null) {
-    const travelFraction = Math.min(0.33, (pool.walkMinutes / TRAVEL_REFERENCE_MINUTES) * 0.33);
-    dash.style.flex = `0 0 ${(travelFraction * 100).toFixed(1)}%`;
-  }
   row.appendChild(dash);
 
   const track = document.createElement("span");
   track.className = "day-bar-track";
   row.appendChild(track);
 
+  const dayEnd = 24 * 60;
+  const departureMinutes = pool.departureTime.getHours() * 60 + pool.departureTime.getMinutes();
+  const totalSpan = Math.max(dayEnd - departureMinutes, 1);
+  // Clamped only for the visual split — if the walk itself runs past
+  // midnight, the dash simply fills the whole bar and the track is empty.
+  const walkMinutes = Math.min(pool.walkMinutes ?? 0, totalSpan);
+  const dashFraction = walkMinutes / totalSpan;
+  dash.style.flex = `${Math.max(dashFraction, 0.001)} 0 0`;
+  track.style.flex = `${Math.max(1 - dashFraction, 0.001)} 0 0`;
+
   if (pool.openStatus === "unknown") {
     track.appendChild(daySegment(1, "unknown"));
     return row;
   }
 
-  const nowMinutes = pool.arrivalTime.getHours() * 60 + pool.arrivalTime.getMinutes();
-  const dayEnd = 24 * 60;
-  const span = Math.max(dayEnd - nowMinutes, 1);
+  const arrivalMinutes = pool.arrivalTime.getHours() * 60 + pool.arrivalTime.getMinutes();
+  const trackSpan = Math.max(dayEnd - arrivalMinutes, 1);
   const remaining = getRemainingSlotsToday(pool, pool.arrivalTime);
 
-  let cursor = nowMinutes;
+  let cursor = arrivalMinutes;
   remaining.forEach((slot) => {
-    const start = Math.max(slot.startMinutes, nowMinutes);
+    const start = Math.max(slot.startMinutes, arrivalMinutes);
     if (start > cursor) {
-      track.appendChild(daySegment((start - cursor) / span, "closed"));
+      track.appendChild(daySegment((start - cursor) / trackSpan, "closed"));
       cursor = start;
     }
-    track.appendChild(daySegment((slot.endMinutes - cursor) / span, "open"));
+    track.appendChild(daySegment((slot.endMinutes - cursor) / trackSpan, "open"));
     cursor = slot.endMinutes;
   });
   if (cursor < dayEnd) {
-    track.appendChild(daySegment((dayEnd - cursor) / span, "closed"));
+    track.appendChild(daySegment((dayEnd - cursor) / trackSpan, "closed"));
   }
 
   return row;

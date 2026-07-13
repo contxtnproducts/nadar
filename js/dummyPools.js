@@ -56,55 +56,46 @@ function shuffle(arr) {
   return copy;
 }
 
-// Each case exercises one distinct rendering branch in app.js, so all
-// possible card states are always visible regardless of the real clock.
+// Each case exercises one distinct rendering branch in app.js. Slots are
+// anchored to that case's own arrival (now + walkMinutes), not raw "now"
+// — app.js computes status/slots from arrival, so anchoring on "now"
+// would silently misalign a case once its walk time is added (e.g. a
+// "closing soon" case could arrive after closing and just look closed).
+// walkMinutes is fixed per case (not randomized) so the set is legible
+// and reproducible: dash length increases case over case.
 function buildCases(now) {
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const todayKey = DAY_KEYS[now.getDay()];
   const coveringPeriod = periodCoveringToday(now);
 
-  return [
-    {
-      name: "Piscine Démo — ouverte, large créneau",
-      todaySlot: slotString([nowMin - 30, nowMin + 180]),
-      period: coveringPeriod,
-    },
-    {
-      name: "Piscine Démo — ferme bientôt",
-      todaySlot: slotString([nowMin - 60, nowMin + 6]),
-      period: coveringPeriod,
-    },
-    {
-      name: "Piscine Démo — rouvre plus tard",
-      todaySlot: slotString([nowMin + 60, nowMin + 180]),
-      period: coveringPeriod,
-    },
-    {
-      name: "Piscine Démo — fermée pour la journée",
-      todaySlot: slotString([nowMin - 240, nowMin - 30]),
-      period: coveringPeriod,
-    },
+  const specs = [
+    { name: "Piscine Démo — ouverte, large créneau", walkMinutes: 5, slot: (a) => slotString([a - 30, a + 180]) },
+    { name: "Piscine Démo — ferme bientôt", walkMinutes: 10, slot: (a) => slotString([a - 60, a + 6]) },
+    { name: "Piscine Démo — rouvre plus tard", walkMinutes: 15, slot: (a) => slotString([a + 60, a + 180]) },
+    { name: "Piscine Démo — fermée pour la journée", walkMinutes: 20, slot: (a) => slotString([a - 240, a - 30]) },
     {
       name: "Piscine Démo — horaires non confirmées",
-      todaySlot: slotString([nowMin - 30, nowMin + 120]),
+      walkMinutes: 25,
+      slot: (a) => slotString([a - 30, a + 120]),
       period: periodNotCoveringToday(),
     },
     {
       name: "Piscine Démo — plusieurs créneaux",
-      todaySlot: slotString([nowMin + 15, nowMin + 45], [nowMin + 90, nowMin + 150]),
-      period: coveringPeriod,
+      walkMinutes: 30,
+      slot: (a) => slotString([a + 15, a + 45], [a + 90, a + 150]),
     },
-    {
-      name: "Piscine Démo — ouverte tard",
-      todaySlot: slotString([nowMin - 400, 1380]),
-      period: coveringPeriod,
-    },
-    {
-      name: "Piscine Démo — aucun horaire aujourd'hui",
-      todaySlot: null,
-      period: coveringPeriod,
-    },
+    { name: "Piscine Démo — ouverte tard", walkMinutes: 40, slot: (a) => slotString([a - 400, 1380]) },
+    { name: "Piscine Démo — aucun horaire aujourd'hui", walkMinutes: 50, slot: null },
   ];
+
+  return specs.map((s) => {
+    const arrivalMin = nowMin + s.walkMinutes;
+    return {
+      name: s.name,
+      walkMinutes: s.walkMinutes,
+      todaySlot: s.slot ? s.slot(arrivalMin) : null,
+      period: s.period || coveringPeriod,
+    };
+  });
 }
 
 export function generateDummyPools(now = new Date()) {
@@ -133,7 +124,7 @@ export function generateDummyPools(now = new Date()) {
       lat: 48.85 + (Math.random() - 0.5) * 0.08,
       lon: 2.35 + (Math.random() - 0.5) * 0.1,
       photoUrl: photos[i % photos.length],
-      walkMinutes: 5 + Math.floor(Math.random() * 65),
+      walkMinutes: c.walkMinutes,
       horaires,
     };
   });
