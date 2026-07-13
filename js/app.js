@@ -2,14 +2,21 @@ import { fetchPools } from "./pools.js";
 import { geocode, reverseGeocode, searchAddresses } from "./geocode.js";
 import { crowFliesKm } from "./distance.js";
 import { saveLocation, loadLocation, clearLocation } from "./storage.js";
-import { getOpenStatus, getTodaySlots, findCoveringSlot, formatMinutes } from "./hours.js";
+import { getOpenStatus, getTodaySlots, findCoveringSlot, getRemainingSlotsToday, formatSlotShort } from "./hours.js";
 import { getWalkingDurations } from "./routing.js";
 
 const STATUS_RANK = { open: 0, unknown: 1, closed: 2 };
 
 const REMEMBERED_ROLES = ["home", "work"];
+const SPECIFIC_ROLES = ["home", "work", "elsewhere"];
 const AUTOCOMPLETE_MIN_LENGTH = 3;
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
+const TRAVEL_REFERENCE_MINUTES = 45; // walk time that fills the capped 1/3-width travel segment
+
+const PIN_ICON_SVG =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>';
+const ARROW_ICON_SVG =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
 let pools = [];
 let currentLocation = null; // { lat, lon, label }
@@ -31,6 +38,10 @@ const addressSuggestionsEl = document.getElementById("address-suggestions");
 const whereOptions = document.getElementById("where-options");
 const whenOptions = document.getElementById("when-options");
 const departureTimeInput = document.getElementById("departure-time-input");
+const locationModal = document.getElementById("location-modal");
+const timeModal = document.getElementById("time-modal");
+const whereSummary = document.getElementById("where-summary");
+const whenSummary = document.getElementById("when-summary");
 
 init();
 
@@ -41,6 +52,8 @@ async function init() {
   changeLocationBtn.addEventListener("click", onChangeLocation);
   whenOptions.addEventListener("click", onWhenClick);
   departureTimeInput.addEventListener("change", renderPools);
+  whereSummary.addEventListener("click", () => locationModal.showModal());
+  whenSummary.addEventListener("click", () => timeModal.showModal());
 
   try {
     pools = await fetchPools();
@@ -57,6 +70,20 @@ async function onWhereClick(event) {
   setActiveButton(whereOptions, btn);
 
   const role = btn.dataset.role;
+
+  if (role === "all") {
+    currentRole = null;
+    currentLocation = null;
+    walkingByPoolId = {};
+    routingStatusEl.hidden = true;
+    changeLocationBtn.hidden = true;
+    addressForm.hidden = true;
+    locationStatusEl.textContent = "";
+    updateWhereSummary();
+    locationModal.close();
+    renderPools();
+    return;
+  }
 
   if (role === "here") {
     useGeolocation();
@@ -85,13 +112,29 @@ function onWhenClick(event) {
   whenMode = btn.dataset.when;
   if (whenMode === "now") {
     departureTimeInput.hidden = true;
+    updateWhenSummary();
+    timeModal.close();
   } else {
     departureTimeInput.hidden = false;
     if (!departureTimeInput.value) {
       departureTimeInput.value = toLocalDatetimeValue(new Date());
     }
+    updateWhenSummary();
   }
   renderPools();
+}
+
+function updateWhereSummary() {
+  const kind = currentRole === "here" ? "here" : SPECIFIC_ROLES.includes(currentRole) ? "specific" : "all";
+  [...whereSummary.querySelectorAll("button[data-summary-where]")].forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.summaryWhere === kind));
+  });
+}
+
+function updateWhenSummary() {
+  [...whenSummary.querySelectorAll("button[data-summary-when]")].forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.summaryWhen === whenMode));
+  });
 }
 
 function setActiveButton(group, activeBtn) {
@@ -205,6 +248,8 @@ function setLocation(role, location) {
   changeLocationBtn.hidden = !REMEMBERED_ROLES.includes(role);
   walkingByPoolId = {};
   routingStatusEl.hidden = true;
+  updateWhereSummary();
+  locationModal.close();
   renderPools(); // fast render on crow-flies distance while walking times load
   updateWalkingTimes(location);
 }
@@ -237,7 +282,6 @@ function renderPools() {
   const sorted = currentLocation ? sortByProximity(pools, currentLocation) : sortByName(pools);
 
   const departureTime = getEffectiveDepartureTime();
-  const isNow = whenMode === "now";
   const withStatus = sorted.map((pool) => {
     // Arrival = departure + actual walking time when known; falls back
     // to departure itself (v1's original assumption) when it isn't.
@@ -257,7 +301,7 @@ function renderPools() {
 
   poolListEl.innerHTML = "";
   withStatus.forEach((pool) => {
-    poolListEl.appendChild(renderPoolItem(pool, isNow));
+    poolListEl.appendChild(renderPoolItem(pool));
   });
 }
 
@@ -296,79 +340,186 @@ function sortByProximity(list, location) {
 
 function formatDayLabel(date) {
   const today = new Date();
-  if (date.toDateString() === today.toDateString()) return "Aujourd'hui";
+  if (date.toDateString() === today.toDateString()) return null;
   const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
   const pad = (n) => String(n).padStart(2, "0");
   return `${days[date.getDay()]} ${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
 }
 
-function statusLabel(status, isNow) {
-  if (status === "open") return isNow ? "Ouvert maintenant" : "Ouvert à cette heure";
-  if (status === "closed") return "Fermé";
-  return "Horaires non confirmées";
+function formatClockColon(date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-function renderPoolItem(pool, isNow) {
-  const li = document.createElement("li");
-  li.className = `pool pool-${pool.openStatus}`;
-
-  const header = document.createElement("div");
-  header.className = "pool-header";
-
-  const name = document.createElement("strong");
-  name.textContent = pool.name;
-  header.appendChild(name);
-
-  const badge = document.createElement("span");
-  badge.className = "status-badge";
-  badge.textContent = statusLabel(pool.openStatus, isNow);
-  header.appendChild(badge);
-
-  li.appendChild(header);
-
-  const meta = document.createElement("div");
-  meta.className = "pool-meta";
-  meta.textContent = `${formatProximity(pool)}${pool.address}, ${pool.arrondissement}`;
-  li.appendChild(meta);
-
-  const hours = document.createElement("div");
-  hours.className = "pool-hours";
-  hours.textContent = formatVisitLine(pool);
-  li.appendChild(hours);
-
-  return li;
+function statusBadgeLabel(status) {
+  if (status === "open") return "OUVERTE";
+  if (status === "closed") return "FERMÉE";
+  return "HORAIRES ?";
 }
 
-function formatClock(date) {
-  return `${String(date.getHours()).padStart(2, "0")}h${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-// "current slot" here means the opening slot the arrival actually falls
-// in, not a raw dump of the day's data — only ever shows the one slot
-// relevant to this visit.
-function formatVisitLine(pool) {
+// "Arr. à 07:45, 15mn de nage" — terse in-card format.
+function formatArrivalLine(pool) {
   const dayLabel = formatDayLabel(pool.arrivalTime);
-  const prefix = dayLabel === "Aujourd'hui" ? "" : `${dayLabel} — `;
-  const arrivalStr = formatClock(pool.arrivalTime);
+  const prefix = dayLabel ? `${dayLabel} — ` : "";
+  const arrivalStr = formatClockColon(pool.arrivalTime);
 
   if (pool.coveringSlot) {
     const arrivalMinutes = pool.arrivalTime.getHours() * 60 + pool.arrivalTime.getMinutes();
     const swimMinutes = pool.coveringSlot.endMinutes - arrivalMinutes;
-    return `${prefix}Arrivée à ${arrivalStr} — ${swimMinutes} min de baignade possible (jusqu'à ${formatMinutes(pool.coveringSlot.endMinutes)})`;
+    return `${prefix}Arr. à ${arrivalStr}, ${swimMinutes}mn de nage`;
   }
-  if (pool.openStatus === "unknown") {
-    return `${prefix}Arrivée à ${arrivalStr} — horaires non confirmées`;
-  }
-  return `${prefix}Arrivée à ${arrivalStr} — fermé à ce moment-là`;
+  if (pool.openStatus === "unknown") return `${prefix}Arr. à ${arrivalStr}, horaires non confirmées`;
+  return `${prefix}Arr. à ${arrivalStr}, fermé à cette heure`;
+}
+
+// "6:45-7:45, 13:30-14:45" — every opening left today, from now.
+function formatRemainingSlotsLine(pool) {
+  const remaining = getRemainingSlotsToday(pool, pool.arrivalTime);
+  if (remaining.length === 0) return "Fermé le reste de la journée";
+  return remaining.map(formatSlotShort).join(", ");
 }
 
 function formatProximity(pool) {
   if (pool.walkSeconds != null) {
     const minutes = Math.round(pool.walkSeconds / 60);
-    return `${minutes} min à pied (${pool.walkKm.toFixed(1)} km) — `;
+    return `${minutes} min à pied (${pool.walkKm.toFixed(1)} km)`;
   }
   if (pool.distanceKm != null && currentLocation) {
-    return `${pool.distanceKm.toFixed(1)} km à vol d'oiseau — `;
+    return `${pool.distanceKm.toFixed(1)} km à vol d'oiseau`;
   }
-  return "";
+  return null;
+}
+
+function renderPoolItem(pool) {
+  const li = document.createElement("li");
+  li.className = `pool pool-${pool.openStatus}`;
+
+  li.appendChild(renderPhoto(pool));
+
+  const content = document.createElement("div");
+  content.className = "pool-content";
+
+  const name = document.createElement("h3");
+  name.className = "pool-name";
+  name.textContent = pool.name;
+  content.appendChild(name);
+
+  const arrLine = document.createElement("p");
+  arrLine.className = "pool-arrival";
+  arrLine.textContent = formatArrivalLine(pool);
+  content.appendChild(arrLine);
+
+  const slotsLine = document.createElement("p");
+  slotsLine.className = "pool-slots";
+  slotsLine.textContent = formatRemainingSlotsLine(pool);
+  content.appendChild(slotsLine);
+
+  content.appendChild(renderDayBar(pool));
+
+  const proximity = formatProximity(pool);
+  if (proximity) {
+    const proxLine = document.createElement("p");
+    proxLine.className = "pool-proximity";
+    proxLine.textContent = proximity;
+    content.appendChild(proxLine);
+  }
+
+  content.appendChild(renderActionRow(pool));
+
+  li.appendChild(content);
+  return li;
+}
+
+function renderPhoto(pool) {
+  const wrap = document.createElement("div");
+  wrap.className = "pool-photo";
+  const badge = document.createElement("span");
+  badge.className = `pool-badge pool-badge-${pool.openStatus}`;
+  badge.textContent = statusBadgeLabel(pool.openStatus);
+  wrap.appendChild(badge);
+  return wrap;
+}
+
+// Icon (mode of travel) + a dash capped at 1/3 width + the day's
+// open/closed blocks from now to midnight — the "big picture" of today.
+function renderDayBar(pool) {
+  const wrap = document.createElement("div");
+  wrap.className = "day-bar";
+
+  if (pool.walkSeconds != null) {
+    const icon = document.createElement("span");
+    icon.className = "day-bar-icon";
+    icon.textContent = "🚶";
+    icon.setAttribute("aria-hidden", "true");
+    wrap.appendChild(icon);
+
+    const dash = document.createElement("span");
+    dash.className = "day-bar-dash";
+    const walkMinutes = pool.walkSeconds / 60;
+    const travelFraction = Math.min(0.33, (walkMinutes / TRAVEL_REFERENCE_MINUTES) * 0.33);
+    dash.style.flex = `0 0 ${(travelFraction * 100).toFixed(1)}%`;
+    wrap.appendChild(dash);
+  }
+
+  const track = document.createElement("span");
+  track.className = "day-bar-track";
+  wrap.appendChild(track);
+
+  const nowMinutes = pool.arrivalTime.getHours() * 60 + pool.arrivalTime.getMinutes();
+  const dayEnd = 24 * 60;
+  const span = Math.max(dayEnd - nowMinutes, 1);
+  const remaining = getRemainingSlotsToday(pool, pool.arrivalTime);
+
+  let cursor = nowMinutes;
+  remaining.forEach((slot) => {
+    const start = Math.max(slot.startMinutes, nowMinutes);
+    if (start > cursor) {
+      track.appendChild(daySegment((start - cursor) / span, "closed"));
+      cursor = start;
+    }
+    track.appendChild(daySegment((slot.endMinutes - cursor) / span, "open"));
+    cursor = slot.endMinutes;
+  });
+  if (cursor < dayEnd) {
+    track.appendChild(daySegment((dayEnd - cursor) / span, "closed"));
+  }
+
+  return wrap;
+}
+
+function daySegment(fraction, kind) {
+  const el = document.createElement("span");
+  el.className = `day-segment day-segment-${kind}`;
+  el.style.flex = `${Math.max(fraction, 0.001)} 0 0`;
+  return el;
+}
+
+function renderActionRow(pool) {
+  const row = document.createElement("div");
+  row.className = "pool-actions";
+
+  if (pool.lat != null && pool.lon != null) {
+    const mapLink = document.createElement("a");
+    mapLink.href = `https://www.google.com/maps/search/?api=1&query=${pool.lat},${pool.lon}`;
+    mapLink.target = "_blank";
+    mapLink.rel = "noopener";
+    mapLink.className = "pool-action-icon";
+    mapLink.title = "Voir sur Google Maps";
+    mapLink.setAttribute("aria-label", `${pool.name} sur Google Maps`);
+    mapLink.innerHTML = PIN_ICON_SVG;
+    row.appendChild(mapLink);
+  }
+
+  // Interim: a paris.fr search link until pool pages are matched by ID
+  // (names don't line up exactly with the lieux-municipaux dataset).
+  const infoLink = document.createElement("a");
+  infoLink.href = `https://www.paris.fr/recherche?q=${encodeURIComponent(pool.name)}`;
+  infoLink.target = "_blank";
+  infoLink.rel = "noopener";
+  infoLink.className = "pool-action-icon";
+  infoLink.title = "Voir sur paris.fr";
+  infoLink.setAttribute("aria-label", `${pool.name} sur paris.fr`);
+  infoLink.innerHTML = ARROW_ICON_SVG;
+  row.appendChild(infoLink);
+
+  return row;
 }

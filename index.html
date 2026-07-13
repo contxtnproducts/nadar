@@ -8,14 +8,45 @@
 </head>
 <body>
 
-<header>
-  <h1>Nadar</h1>
-  <p>Trouve une piscine parisienne pour nager, maintenant.</p>
+<header id="hero">
+  <p class="brand">Nadar</p>
+  <p class="kicker">Piscines et horaires faciles</p>
+  <h1>Je veux nager</h1>
 </header>
 
-<section id="where-filter" aria-label="Filtre de localisation">
-  <h2>On part d'où ?</h2>
+<section id="pool-list-section">
+  <p id="pool-status" aria-live="polite">Chargement…</p>
+  <ul id="pool-list"></ul>
+</section>
+
+<footer>
+  <p>
+    Données : Ville de Paris, via
+    <a href="https://opendata.paris.fr/explore/dataset/ilots-de-fraicheur-equipements-activites/" target="_blank" rel="noopener">opendata.paris.fr</a>,
+    licence ODbL.
+  </p>
+</footer>
+
+<nav id="bottom-bar" aria-label="Filtres">
+  <div id="where-summary" class="summary-row" role="group" aria-label="Où">
+    <button type="button" data-summary-where="all" aria-pressed="true">Tout Paris</button>
+    <button type="button" data-summary-where="here" aria-pressed="false">Autour</button>
+    <button type="button" data-summary-where="specific" aria-pressed="false">Près de</button>
+  </div>
+  <div id="when-summary" class="summary-row" role="group" aria-label="Quand">
+    <button type="button" data-summary-when="now" aria-pressed="true">Maintenant</button>
+    <button type="button" data-summary-when="later" aria-pressed="false">Plus tard</button>
+  </div>
+</nav>
+
+<dialog id="location-modal" aria-label="Réglages de localisation">
+  <form method="dialog" class="modal-header">
+    <h2>On part d'où ?</h2>
+    <button type="submit" class="modal-close" aria-label="Fermer">✕</button>
+  </form>
+
   <div id="where-options" role="group" aria-label="Choix de localisation">
+    <button type="button" data-role="all" aria-pressed="true">Tout Paris</button>
     <button type="button" data-role="here" aria-pressed="false">Ici</button>
     <button type="button" data-role="work" aria-pressed="false">Travail</button>
     <button type="button" data-role="home" aria-pressed="false">Domicile</button>
@@ -32,30 +63,20 @@
   <p id="location-status" aria-live="polite"></p>
   <p id="routing-status" aria-live="polite" hidden></p>
   <button type="button" id="change-location-btn" hidden>Changer</button>
-</section>
+</dialog>
 
-<section id="when-filter" aria-label="Filtre horaire">
-  <h2>On part quand ?</h2>
+<dialog id="time-modal" aria-label="Réglages horaires">
+  <form method="dialog" class="modal-header">
+    <h2>On part quand ?</h2>
+    <button type="submit" class="modal-close" aria-label="Fermer">✕</button>
+  </form>
+
   <div id="when-options" role="group" aria-label="Choix horaire">
     <button type="button" data-when="now" aria-pressed="true">Maintenant</button>
     <button type="button" data-when="later" aria-pressed="false">Plus tard</button>
   </div>
   <input id="departure-time-input" type="datetime-local" hidden>
-</section>
-
-<section id="pool-list-section">
-  <h2>Piscines</h2>
-  <p id="pool-status" aria-live="polite">Chargement…</p>
-  <ul id="pool-list"></ul>
-</section>
-
-<footer>
-  <p>
-    Données : Ville de Paris, via
-    <a href="https://opendata.paris.fr/explore/dataset/ilots-de-fraicheur-equipements-activites/" target="_blank" rel="noopener">opendata.paris.fr</a>,
-    licence ODbL.
-  </p>
-</footer>
+</dialog>
 
 <script type="module" src="js/app.js"></script>
 </body>

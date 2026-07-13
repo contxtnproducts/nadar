@@ -67,6 +67,20 @@ export function findCoveringSlot(slots, minutesOfDay) {
   return slots.find((slot) => minutesOfDay >= slot.startMinutes && minutesOfDay < slot.endMinutes) || null;
 }
 
+// All of today's slots that haven't fully ended yet — the "big picture"
+// of today's remaining openings, not just the one covering `now`.
+export function getRemainingSlotsToday(pool, now = new Date()) {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return getTodaySlots(pool, now).filter((slot) => slot.endMinutes > nowMinutes);
+}
+
+// "6:45-7:45" — no leading zero on the hour, matching the design's
+// terser in-card format (formatSlot's "06h45 - 07h45" is used elsewhere).
+export function formatSlotShort(slot) {
+  const short = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+  return `${short(slot.startMinutes)}-${short(slot.endMinutes)}`;
+}
+
 export function formatSlot(slot) {
   return `${formatMinutes(slot.startMinutes)} - ${formatMinutes(slot.endMinutes)}`;
 }
